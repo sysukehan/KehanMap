@@ -1,15 +1,23 @@
 package com.study.android.kehan.kehanmap.View;
 
 import android.app.Activity;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.Toast;
 
 import com.baidu.mapapi.SDKInitializer;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BitmapDescriptor;
 import com.baidu.mapapi.map.BitmapDescriptorFactory;
+import com.baidu.mapapi.map.Gradient;
+import com.baidu.mapapi.map.GroundOverlayOptions;
+import com.baidu.mapapi.map.HeatMap;
+import com.baidu.mapapi.map.InfoWindow;
 import com.baidu.mapapi.map.LogoPosition;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.Marker;
@@ -20,10 +28,13 @@ import com.baidu.mapapi.map.Stroke;
 import com.baidu.mapapi.map.TextOptions;
 import com.baidu.mapapi.map.UiSettings;
 import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.model.LatLngBounds;
+import com.baidu.mapapi.overlayutil.PoiOverlay;
 import com.study.android.kehan.kehanmap.R;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Created by kehan on 16-7-7.
@@ -91,7 +102,11 @@ public class MainActivity extends Activity {
         //  在地图上添加文字覆盖物
 //        setTextCover(39.963175, 116.400244, "我爱北京天安门");
 
+        //  添加地形图图层
+//        addGroundOverlay();
 
+        //  添加热力图图层
+//        addHeatMap();
     }
 
     @Override
@@ -182,7 +197,109 @@ public class MainActivity extends Activity {
         mBaiduMap.addOverlay(textOption);
     }
 
+    /**
+     * 弹出窗覆盖物的实现
+     */
+    private void alertWindow() {
+
+        //创建InfoWindow展示的view
+        Button button = new Button(getApplicationContext());
+        button.setBackgroundResource(R.mipmap.ic_launcher);
+
+        //  定义用于显示该InfoWindow的坐标点
+        LatLng pt = new LatLng(39.86923, 116.397428);
+        setMapMarker(39.86923, 116.397428);
+
+        //  创建InfoWindow , 传入 view， 地理坐标， y 轴偏移量
+        InfoWindow mInfoWindow = new InfoWindow(button, pt, -87);
+
+        //  显示InfoWindow
+        mBaiduMap.showInfoWindow(mInfoWindow);
+
+        //  弹出的view可被点击
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(MainActivity.this, "我被点了", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * 添加地形图图层
+     */
+    private void addGroundOverlay() {
+        //定义Ground的显示地理范围
+        LatLng southwest = new LatLng(39.92235, 116.380338);
+        LatLng northeast = new LatLng(39.947246, 116.414977);
+        LatLngBounds bounds = new LatLngBounds.Builder()
+                .include(northeast)
+                .include(southwest)
+                .build();
+        //定义Ground显示的图片
+        BitmapDescriptor bdGround = BitmapDescriptorFactory
+                .fromResource(R.mipmap.beauty);
+        //定义Ground覆盖物选项
+        OverlayOptions ooGround = new GroundOverlayOptions()
+                .positionFromBounds(bounds)
+                .image(bdGround)
+                .transparency(0.8f);
+        //在地图中添加Ground覆盖物
+        mBaiduMap.addOverlay(ooGround);
+    }
+
+    /**
+     * 添加热力图
+     */
+    private void addHeatMap() {
+        //  设置渐变颜色值
+        int[] DEFAULT_GRADIENT_COLORS = {Color.rgb(102, 225,  0), Color.rgb(255, 0, 0) };
+        //  设置渐变颜色起始值
+        float[] DEFAULT_GRADIENT_START_POINTS = { 0.2f, 1f };
+        //  构造颜色渐变对象
+        final Gradient gradient = new Gradient(DEFAULT_GRADIENT_COLORS, DEFAULT_GRADIENT_START_POINTS);
+
+        //  在大量热力图数据情况下，build过程相对较慢，建议放在新建线程实现
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //  以下数据为随机生成地理位置点，开发者根据自己的实际业务，传入自有位置数据即可
+                List<LatLng> randomList = new ArrayList<LatLng>();
+                Random r = new Random();
+                for (int i = 0; i < 10000; i++) {
+                    // 116.220000,39.780000 116.570000,40.150000
+                    int rlat = r.nextInt(370000);
+                    int rlng = r.nextInt(370000);
+                    int lat = 39780000 + rlat;
+                    int lng = 116220000 + rlng;
+                    LatLng ll = new LatLng(lat / 1E6, lng / 1E6);
+                    randomList.add(ll);
+                }
+                final HeatMap heatmap = new HeatMap.Builder()
+                        .data(randomList)
+                        .gradient(gradient)
+                        .build();
+                //  在地图上添加热力图
+                mBaiduMap.addHeatMap(heatmap);
+            }
+        }).start();
+
+        //  删除热力图
+        //heatmap.removeHeatMap();
+    }
+
     private int mGetColor(int colorId) {
         return getResources().getColor(colorId);
+    }
+
+    private class MyPoiOverlay extends PoiOverlay {
+        public MyPoiOverlay(BaiduMap baiduMap) {
+            super(baiduMap);
+        }
+        @Override
+        public boolean onPoiClick(int index) {
+            super.onPoiClick(index);
+            return true;
+        }
     }
 }
